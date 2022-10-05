@@ -35,13 +35,13 @@ which detects a new stable version and performs the needed steps to
 have a smoother upgrade procedure from command line.
 
 %prep
-%setup -q -n %{mod_full_name}
+%setup -q -n %{mod_name}
 
 %build
 
 %install
+mkdir -p %{buildroot}/usr/lib/zypper/commands %{buildroot}/%{_mandir}/man8 %{buildroot}%{_bindir}
 install -m 755 upgradedistro %{buildroot}%{_bindir}/
-mkdir -p %{buildroot}/usr/lib/zypper/commands %{buildroot}/%{_mandir}/man8
 install -m 755 zypper-upgradedistro %{buildroot}/usr/lib/zypper/commands/
 install -m 644 zypper-upgradedistro.8 %{buildroot}/%{_mandir}/man8/
 
