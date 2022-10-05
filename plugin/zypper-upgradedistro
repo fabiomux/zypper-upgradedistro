@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+opensuse_leap_upgrade "$0"

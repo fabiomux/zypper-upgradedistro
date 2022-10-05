@@ -1,0 +1,396 @@
+#!/bin/bash
+#
+# Title:   Zypper-Upgradedistro
+# Version: 1.0.0
+# Author:  Fabio Mucciante
+# E-mail:  fabio.mucciante@gmail.com
+# License: GPL v3
+# Reqs:    bash, sed, zypper, zypper-upgraderepo
+# Usage:   This script performs all the steps needed to upgrade the openSUSE Leap
+#           distribution .
+# Created: 2020/04/04
+# Updated: 2022/09/28
+
+VERSION_CHECK=1
+ALLOW_UNSTABLE=0
+SYSTEM_UPDATE=1
+REPOSITORY_CHECK=1
+REPOSITORY_UPGRADE=1
+DOWNLOAD_PACKAGES=1
+REPOS_OVERRIDES=''
+RESUME_FILE="$HOME/upgradedistro.resume"
+UPGRADE_TO=''
+
+function help {
+  local ver=`grep '# Version: [0-9]\+' "$0"|cut -f 3 -d ' '`
+  echo <<EOL "
+Zypper-Upgradedistro v.$ver
+
+SYNOPSIS:
+
+  upgradedistro [OPTIONS]
+
+DESCRIPTION:
+
+  Zypper-Upgradedistro drives through all the required steps to upgrade the openSUSE Leap
+  distribution, smoothly.
+
+OPTIONS:
+
+  --allow-unstable (-U):
+    Allow unstable releases to be considered as an option
+
+  --no-version-check (-v):
+    Skip the release version check
+
+  --no-system-update (-s)
+    Skip the system update
+
+  --no-repository-check (-c):
+    Skip the repository check procedure
+
+  --no-repository-upgrade (-u):
+    Skip the repository upgrade procedure
+
+  --no-repository (-r)
+    Skip both the repository check and upgrade procedures
+
+  --no-packages (-p)
+    Skip the download of the packages to be upgraded
+
+  --resume
+    Restart from the last step left
+
+OTHER:
+
+  --help (-h):
+    This guide
+"
+EOL
+}
+
+function filter_params {
+
+  while [ -n "$1" ]; do
+
+    case "$1" in
+    '--allow-unstable' | '-U') ALLOW_UNSTABLE=1
+    ;;
+    '--no-version-check' | '-v') VERSION_CHECK=0
+    ;;
+    '--no-system-update' | '-s') SYSTEM_UPDATE=0
+    ;;
+    '--no-repository-check' | '-c') REPOSITORY_CHECK=0
+    ;;
+    '--no-repository-upgrade' | '-u') REPOSITORY_UPGRADE=0
+    ;;
+    '--no-repository' | '-r') REPOSITORY_CHECK=0; REPOSITORY_UPGRADE=0
+    ;;
+    '--no-packages' | '-p') DOWNLOAD_PACKAGES=0
+    ;;
+    '--resume')
+      if [ -f "$RESUME_FILE" ]; then
+        source "$RESUME_FILE"
+      fi
+    ;;
+    '--help' | '-h') help; exit
+    ;;
+    esac
+
+    shift
+  done
+}
+
+function _nothing {
+  echo -e "\r\E[31m\033[1m[-]\E[0m $1"
+}
+
+function _error {
+  echo -e "\r\E[31m\033[1m[E]\E[0m $1"
+}
+
+function _ok {
+  echo -e "\r\E[32m\033[1m[V]\E[0m $1"
+}
+
+
+function _warning {
+  echo -e "\r\E[33m\033[1m[W]\E[0m $1"
+}
+
+function _ask {
+  echo -ne "\E[35m\033[1m[?]\E[0m $1 [y/N]: "
+}
+
+function _option {
+  echo -e "\E[34m\033[1m[*]\E[0m $1"
+}
+
+function _clean {
+  echo "    $1"
+}
+
+function _up {
+  echo -e "\e[1A\e[K"
+}
+
+function discover_available_versions {
+  echo -n 'Checking for the available versions... '
+  local allow_unstable=`[[ $ALLOW_UNSTABLE -eq 1 ]] && echo '--allow-unstable' || echo ''`
+  local versions=`zypper-upgraderepo --status --quiet $allow_unstable`
+  local num_versions=`echo $versions | cut -f 1 -d ' '`
+
+  if [[ $num_versions -gt 1 ]]; then
+    _warning 'Which version do you want to upgrade to?'
+    c=1
+    for i in `echo $versions | cut -f 2- -d ' '`; do
+      _option "$c) $i"
+      c=$((c+1))
+    done
+
+    ans=
+    while [[ -z $ans ]]; do
+      echo -ne 'Insert a valid value: '
+      read ans
+      if [[ -z "$ans" || $ans -lt 1 || $ans -gt $num_versions ]]; then
+        _up;_up
+        ans=
+      fi
+    done
+    UPGRADE_TO=`echo $versions | cut -f $((ans+1)) -d ' '`
+    _ok "Selected the $UPGRADE_TO version"
+  elif [[ $num_versions -eq 1 ]]; then
+    _ok 'Selected the last available release to upgrade'
+  fi
+  echo "UPGRADE_TO=$UPGRADE_TO" >> "$RESUME_FILE"
+  echo "ALLOW_UNSTABLE=$ALLOW_UNSTABLE" >> "$RESUME_FILE"
+}
+
+function repos_upgrade {
+  local options=''
+
+  if [ -n "$REPOS_OVERRIDES" ]; then
+    options="--load-overrides $REPOS_OVERRIDES"
+  fi
+
+  echo -n 'Upgrading repositories...'
+  local upgrade_to=`[[ -z "$UPGRADE_TO" ]] && echo '--upgrade' || echo "--upgrade-to $UPGRADE_TO"`
+  sudo zypper-upgraderepo $upgrade_to --only-enabled --quiet $options
+  if [[ $? == 0 ]]; then
+    _ok 'Repositories correctly upgraded!'
+  else
+    _error 'An error occurred, impossible to upgrade the repositories!'
+    exit
+  fi
+}
+
+function fix_repos_upgrade {
+  _warning "Some repository can't get upgraded, so you can..."
+  _option '1) Disable the repositories having an invalid URL'
+  _option '2) Try to find a valid URL to replace it'
+  _clean ''
+  _clean 'Continue to apply one of these changes to invalid URLs [RETURN]'
+  read
+  local tmpfile=`mktemp /tmp/upgradedistro.XXXXXXXXXXX`
+  EDITOR=$EDITOR || 'vim'
+
+  echo -n 'Exporting the list...'
+  zypper-upgraderepo --check-next --ini --only-enabled --only-invalid 1> $tmpfile
+  _ok 'List ready to be edited [RETURN]'
+  read
+  local res=7
+  while [[  $res !=  0 ]]; do
+    $EDITOR "$tmpfile"
+    echo -n 'Checking repositories again...'
+    zypper-upgraderepo --check-next --only-enabled --load-overrides "$tmpfile" --exit-on-fail --quiet
+    res=$?
+    if [[ $res != 0 ]]; then
+      _error 'Other problems have been detected!    '
+      _clean ''
+      _clean 'Press the [RETURN] key to edit the file again'
+      read
+      zypper-upgraderepo --check-next --only-enabled --load-overrides "$tmpfile" --ini --only-invalid 1> $tmpfile
+    fi
+  done
+
+  _ok 'Repository check completed with success!'
+  REPOS_OVERRIDES="$tmpfile"
+}
+
+filter_params "$@"
+
+if [[ $VERSION_CHECK == 1 ]]; then
+  echo -n 'Online version check...'
+  res=`curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap' | head -n 1`
+
+  if [[ "$res" == '' ]]; then
+    _error "Connection troubles, the address https://get.opensuse.org can't be reached"
+    exit
+  fi
+
+  long_ver=`echo $res | sed  's@.*>\(.*\)<.*@\1@g'`
+  short_ver=`echo $long_ver | cut -f 2 -d ' '`
+  #echo $long_ver; echo $short_ver; exit
+  current_ver=`cat /etc/os-release | grep -i '^Version=' | cut -f 2 -d '=' | sed 's@"@@g'`
+  if [ $short_ver != $current_ver ]; then
+    _ok "The version $long_ver is available"
+    _ask "Do you want to perform an upgrade?"
+    read ans
+    if [ "$ans" != 'y' ]; then
+      _nothing "Upgrade aborted."
+      exit
+    fi
+    echo 'VERSION_CHECK=0' > "$RESUME_FILE"
+  else
+    _ok "The current version ($current_ver) is already the last stable ($short_ver)"
+    exit 2
+  fi
+  discover_available_versions
+else
+  _warning 'Version check skipped'
+fi
+
+if [[ $SYSTEM_UPDATE == 1 ]]; then
+  echo -n 'Performing the system update...'
+  sudo zypper update -y -l &> /dev/null
+  if [[ $? == 0 ]]; then
+    _up
+    _ok 'System correctly updated         '
+  else
+    _error 'An error occurred while updating the system'
+    _clean ''
+    _clean '****************************************************************'
+    _clean '*** Run the command "sudo zypper update" to fix the errors   ***'
+    _clean '***   and once fixed restart this script with the options -s ***'
+    _clean '***   or resume it with the --resume flag                    ***'
+    _clean '****************************************************************'
+    exit
+  fi
+  echo 'SYSTEM_UPDATE=0' >> "$RESUME_FILE"
+else
+  _warning 'System update skipped'
+fi
+
+if [[ $REPOSITORY_CHECK == 1 ]]; then
+  echo -n 'Checking the Repositories... '
+  check_for=`[[ -z "$UPGRADE_TO" ]] && echo '--check-next' || echo "--check-for $UPGRADE_TO"`
+  zypper-upgraderepo $check_for --only-enabled --quiet --exit-on-fail
+  case $? in
+  0)
+    _ok 'Repositories: Ready to be upgraded'
+    echo 'REPOSITORY_CHECK=0' >> "$RESUME_FILE"
+    ;;
+  2)
+    _error 'The system is already upgraded   '
+    exit
+    ;;
+  7)
+    fix_repos_upgrade
+    ;;
+  *)
+    _error "Unhandled error, run the 'zypper-upgraderepo --check-next --exit-on-fail' command manually"
+    exit
+    ;;
+  esac
+else
+  _warning 'Repository check skipped'
+fi
+
+if [[ $REPOSITORY_UPGRADE == 1 ]]; then
+  echo -n 'Backing up repositories...'
+  zypper-upgraderepo --backup "$PWD" --quiet
+  if [[ $? == 0 ]]; then
+    _ok "Repositories backup created under '$PWD'"
+  else
+    _error 'Repository backup failed'
+    exit
+  fi
+  repos_upgrade
+  echo 'REPOSITORY_UPGRADE=0' >> "$RESUME_FILE"
+else
+  _warning 'Repository upgrade skipped'
+fi
+
+if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
+  echo -n 'Downloading packages...'
+  sudo zypper dup --download-only
+  if [[ $? == 0 ]]; then
+    _ok 'All the packages have been downloaded'
+    echo 'DOWNLOAD_PACKAGES=0' >> "$RESUME_FILE"
+  else
+    _error 'Something wrong happened'
+    _clean ''
+    _clean '***************************************************************************'
+    _clean '*** Run the command "sudo zypper dup --download-only" to fix the errors ***'
+    _clean '***   and once fixed restart this script with the options -r -p -s      ***'
+    _clean '***   or resume it with the --resume flag                               ***'
+    _clean '***************************************************************************'
+    exit
+  fi
+else
+  _warning 'Package download skipped'
+fi
+
+echo -n 'Running terminal check...'
+if [[ "`tty`" =~ tty[0-9]+$ ]]; then
+  _ok 'Running in a true terminal'
+else
+  _error 'Running from a virtual terminal'
+  _clean ''
+  _clean '*************************************************************************************'
+  _clean '*** Please logout from your X session and restart this command in a true terminal ***'
+  _clean '***   logging with the same user (CTRL + ALT + Fn).                               ***'
+  _clean '***                                                                               ***'
+  _clean '*** Use the options -r -p -s -V to avoid completed tasks be run again             ***'
+  _clean '***   or resume the process with the --resume flag                                ***'
+  _clean '*************************************************************************************'
+  exit
+fi
+
+_clean '******************************************************************************************'
+_clean '*** Going to switch to runlevel 3 in order to have the minimal services running before ***'
+_clean '*** apply the changes. Close all the application in the graphical session and logout   ***'
+_clean '******************************************************************************************'
+_ask 'Are you ready to continue?'
+read ans
+if [[ "$ans" == 'y' ]]; then
+  sudo init 3
+  if [[ $? == 0 ]]; then
+    _ok 'Runlevel 3 enabled'
+  else
+    _error 'Something wrong happened'
+    exit
+  fi
+else
+  _error 'Upgrading process aborted.'
+  exit
+fi
+
+_clean '*************************************************************************************'
+_clean "*** Time to upgrade, don't turn off the computer until the procedure is completed ***"
+_clean '*************************************************************************************'
+_ask 'Are you ready to continue?'
+read ans
+if [[ "$ans" == 'y' ]]; then
+  sudo zypper --no-refresh dup
+  if [[ $? == 0 ]]; then
+    _ok 'All packages have been installed'
+  else
+    _error 'Something wrong happened'
+    exit
+  fi
+else
+  _error 'Upgrading process aborted'
+  exit
+fi
+
+_clean '*** Time to reboot to complete the upgrade ***'
+_ask 'Are you ready to continue?'
+read ans
+if [[ "$ans" == 'y' ]]; then
+  _ok 'Rebooting'
+  sudo reboot now
+else
+  _error 'Reboot the system manually before using it'
+fi
+

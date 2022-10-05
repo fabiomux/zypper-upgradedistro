@@ -1,0 +1,54 @@
+.\" Manpage for opensuse_leap_upgrade.
+.TH man 8 "28 Sep 2022" "1.0.0" "opensuse_leap_upgrade man page"
+.SH NAME
+opensuse_leap_upgrade \- performs the steps to upgrade the openSUSE Leap distro to the new release
+.SH SYNOPSIS
+zypper opensuse_leap_upgrade [OPTIONS]
+.SH DESCRIPTION
+.PP
+opensuse_leap_upgrade is an interactive script which performs the needed
+steps to upgrade the openSUSE Leap distribution to the new release.
+
+All the operations are performed in a command line interface where every step
+is well hilighted by output messages and, when required, confirmed by the
+user.
+
+The script also keeps track of all the steps executed and allows to \fBresume\fR
+from the last succesfull operation performed, nevertheless the options provided
+allow to exclude some of these steps from the flow.
+
+The whole part about the repository check and upgrade rely on the zypper-upgraderepo
+application.
+.SH OPTIONS
+.TP
+.B  --allow-unstable (-U)
+Allows unstable releases to be considered as an option.
+.TP
+.B  --no-version-check (-v)
+Skip the version check to avoid another call to the online server.
+.TP
+.B  --no-system-update (-s)
+Skip the system update, to use mainly when some not-critical package can't be
+updated and prevent the script to complete the upgrade process.
+.TP
+.B  --no-repository-check (-c)
+Skip the repository check procedure, only the upgradable repository will be
+switched to the next version.
+.TP
+.B  --no-repository-upgrade (-u)
+Skip the repository upgrade.
+.TP
+.B  --no-repository (-r)
+Skip both the repository check and upgrade procedures.
+.TP
+.B  --no-packages (-p)
+Skip the download of packages to be upgraded.
+.TP
+.B  --resume
+Restart the script from the last step left.
+.SH SEE ALSO
+zypper(8) zypper-upgraderepo(8)
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Fabio Mucciante <fabio.mucciante@gmail.com>
