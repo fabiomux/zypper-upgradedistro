@@ -98,7 +98,7 @@ $ zypper upgradedistro --help
 
 More info is available at:
 - the [project page][project_page] on Freeaptitude blog;
-- the article [Upgrading with zypper_upgradedistro][upgrading_with_zypper_upgradedistro] on Freeaptitude blog;
+- the article [Upgrading with zypper-upgradedistro][upgrading_with_zypper_upgradedistro] on Freeaptitude blog;
 - the article [Upgrading openSUSE with Zypper][upgrading_with_zypper] on Freeaptitude blog.
 
 
