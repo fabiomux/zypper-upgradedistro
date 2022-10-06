@@ -21,6 +21,7 @@ Release:        0
 %define mod_name zypper-upgradedistro
 %define mod_full_name %{mod_name}-%{version}
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+BuildArch:      noarch
 Requires:       rubygem(zypper-upgraderepo)
 Requires:       zypper >= 1.13.10
 Url:            https://github.com/fabiomux/zypper-upgradedistro
