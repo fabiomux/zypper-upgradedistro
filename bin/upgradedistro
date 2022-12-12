@@ -7,9 +7,9 @@
 # License: GPL v3
 # Reqs:    bash, sed, zypper, zypper-upgraderepo
 # Usage:   This script performs all the steps needed to upgrade the openSUSE Leap
-#           distribution .
+#            distribution smoothly.
 # Created: 2020/04/04
-# Updated: 2022/09/28
+# Updated: 2022/12/12
 
 VERSION_CHECK=1
 ALLOW_UNSTABLE=0
@@ -65,6 +65,12 @@ OTHER:
 
   --help (-h):
     This guide
+
+DEFAULT EDITOR:
+
+  * $EDITOR
+
+  To change this, override the variable \$EDITOR before launching the script
 "
 EOL
 }
@@ -150,7 +156,7 @@ function discover_available_versions {
 
     ans=
     while [[ -z $ans ]]; do
-      echo -ne 'Insert a valid value: '
+      echo -ne 'Insert a valid value: [1/.../$num_versions] '
       read ans
       if [[ -z "$ans" || $ans -lt 1 || $ans -gt $num_versions ]]; then
         _up;_up
@@ -185,18 +191,28 @@ function repos_upgrade {
 }
 
 function fix_repos_upgrade {
-  _warning "Some repository can't get upgraded, so you can..."
-  _option '1) Disable the repositories having an invalid URL'
-  _option '2) Try to find a valid URL to replace it'
-  _clean ''
-  _clean 'Continue to apply one of these changes to invalid URLs [RETURN]'
-  read
   local tmpfile=`mktemp /tmp/upgradedistro.XXXXXXXXXXX`
   EDITOR=$EDITOR || 'vim'
+  _warning "Some repository can't get upgraded, so you should either..."
+  _option 'Disable the repositories having an invalid URL'
+  _option 'Replace the repository URL with a valid one'
+  _clean ''
+  _clean 'A list of invalid repositories will be exported in an INI file format'
+  _clean "  and opened with the default text editor ($EDITOR) in order to consent"
+  _clean '  one of these changes achieved by:'
+  _clean '  - updating the *enabled* field to *no*'
+  _clean '  - overriding the *url* field with a valid URL or using the suggested'
+  _clean '    one if any is given'
+  _clean ''
+  _clean 'To change the default editor just restart the script setting the *EDITOR*'
+  _clean '  variable properly: EDITOR=nano upgradedistro --resume'
+  _clean ''
+  _clean 'Press the [RETURN] key to continue.'
+  read
 
   echo -n 'Exporting the list...'
   zypper-upgraderepo --check-next --ini --only-enabled --only-invalid 1> $tmpfile
-  _ok 'List ready to be edited [RETURN]'
+  _ok 'List ready to be edited. Press the [RETURN] key to continue'
   read
   local res=7
   while [[  $res !=  0 ]]; do
@@ -234,7 +250,7 @@ if [[ $VERSION_CHECK == 1 ]]; then
   current_ver=`cat /etc/os-release | grep -i '^Version=' | cut -f 2 -d '=' | sed 's@"@@g'`
   if [ $short_ver != $current_ver ]; then
     _ok "The version $long_ver is available"
-    _ask "Do you want to perform an upgrade?"
+    _ask 'Do you want to perform an upgrade?'
     read ans
     if [ "$ans" != 'y' ]; then
       _nothing "Upgrade aborted."
@@ -288,7 +304,7 @@ if [[ $REPOSITORY_CHECK == 1 ]]; then
     fix_repos_upgrade
     ;;
   *)
-    _error "Unhandled error, run the 'zypper-upgraderepo --check-next --exit-on-fail' command manually"
+    _error "Unhandled error, run the 'zypper-upgraderepo --check-next' command manually to know the problem"
     exit
     ;;
   esac
@@ -339,9 +355,9 @@ else
   _clean ''
   _clean '*************************************************************************************'
   _clean '*** Please logout from your X session and restart this command in a true terminal ***'
-  _clean '***   logging with the same user (CTRL + ALT + Fn).                               ***'
+  _clean "***  (CTRL + ALT + Fn) logging in with the same username ($USER).                 ***"
   _clean '***                                                                               ***'
-  _clean '*** Use the options -r -p -s -V to avoid completed tasks be run again             ***'
+  _clean '*** Use the options -r -p -s -V to avoid completed tasks to be run again          ***'
   _clean '***   or resume the process with the --resume flag                                ***'
   _clean '*************************************************************************************'
   exit
@@ -391,6 +407,6 @@ if [[ "$ans" == 'y' ]]; then
   _ok 'Rebooting'
   sudo reboot now
 else
-  _error 'Reboot the system manually before using it'
+  _error 'Reboot the system manually to complete the process!'
 fi
 
