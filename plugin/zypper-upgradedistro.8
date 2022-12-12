@@ -19,6 +19,10 @@ allow to exclude some of these steps from the flow.
 
 The whole part about the repository check and upgrade rely on the zypper-upgraderepo
 application.
+When invalid and enabled repository are detected a list of them is exported within
+an INI file to be fixed. The choosen editor is the same provided by the \fB$EDITOR\fR
+environment variable, so in order to have a custom editor, just override this variable
+before launching the script
 .SH OPTIONS
 .TP
 .B  --allow-unstable (-U)
