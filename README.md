@@ -66,16 +66,66 @@ Output messages will appear from time to time to:
 
 The messages should be helpful enough to drive through the process safely.
 
-The optional switches provided have the sole purpose to skip one of the steps that
-block the completion of the upgrade.
+### Options
 
-Of course the reason to do that should be well ponderated, for example:
-- the openSUSE server is temporarily off and doesn't provide the page where the last
+The optional switches provided have the sole purpose to skip one of the steps that
+might block the completion of the upgrade, or the already completed tasks.
+
+Using the `--resume` option will automatically restart the script from the latest
+completed task.
+
+This is the full list of the available options:
+<dl>
+  <dt>--allow-unstable (-U):</dt>
+  <dd>Allow unstable releases to be considered as an option</dd>
+
+  <dt>--no-version-check (-v):</dt>
+  <dd>Skip the release version check</dd>
+
+  <dt>--no-system-update (-s)</dt>
+  <dd>Skip the system update</dd>
+
+  <dt>--no-repository-check (-c):</dt>
+  <dd>Skip the repository check procedure</dd>
+
+  <dt>--no-repository-upgrade (-u):</dt>
+  <dd>Skip the repository upgrade procedure</dd>
+
+  <dt>--no-repository (-r)</dt>
+  <dd>Skip both the repository check and upgrade procedures</dd>
+
+  <dt>--no-packages (-p)</dt>
+  <dd>Skip the download of the packages to be upgraded</dd>
+
+  <dt>--resume</dt>
+  <dd>Restart from the last step left</dd>
+</dl>
+
+Skipping the steps individually should be well ponderated, and reserved to specific situations,
+for example:
+- when the openSUSE server is temporarily off and doesn't provide the page where the last
   release number is served, we can skip this step if we know that a new release is available;
 - A no critical repository is offline and can't get updates, instead of disable it we can decide
-  to skip the last update but still upgrade it;
-- A no critical package can't be upgraded without a new download, but having switched to
-  the console mode we can skip the upgrade of that package and fix it later.
+  to skip the update task and still upgrade it;
+- A no critical package can't be upgraded without a new download, thus we can skip the upgrade
+  of that package and fix it later.
+
+### The default editor
+
+When repositories don't get a valid URL by the *zypper-upgraderepo* script, a list of invalid but
+still enabled repositories is exported in an INI file to disable or update the URLs without
+interrupting the script.
+To do that, the editor in the *$EDITOR* variable will be used, if none, *vim* will be the default
+choice.
+If you want to switch to a more familiar editor you must override this variable before lauching
+the *upgradedistro* command:
+```shell
+$ EDITOR='nano' upgradedistro ...
+```
+Or
+```shell
+$ EDITOR='nano' zypper upgradedistro ...
+```
 
 ## Get help
 
@@ -91,7 +141,7 @@ $ zypper help upgradedistro
 
 For a quick help:
 ```shell
-$ zypper upgradedistro --help
+$ upgradedistro --help
 ```
 
 ## More help
