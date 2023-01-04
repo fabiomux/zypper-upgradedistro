@@ -17,7 +17,7 @@ SYSTEM_UPDATE=1
 REPOSITORY_CHECK=1
 REPOSITORY_UPGRADE=1
 DOWNLOAD_PACKAGES=1
-REPOS_OVERRIDES=''
+LOAD_OVERRIDES=''
 RESUME_FILE="$HOME/upgradedistro.resume"
 UPGRADE_TO=''
 CHECK_FOR=''
@@ -40,6 +40,9 @@ OPTIONS:
 
   --allow-unstable (-U):
     Allow unstable releases to be considered as an option
+
+  --load-overrides <FILE>:
+    Load the repository overrides FILE
 
   --no-version-check (-v):
     Skip the release version check
@@ -82,6 +85,8 @@ function filter_params {
 
     case "$1" in
     '--allow-unstable' | '-U') ALLOW_UNSTABLE=1
+    ;;
+    '--load-overrides') shift; LOAD_OVERRIDES="$1"
     ;;
     '--no-version-check' | '-v') VERSION_CHECK=-1
     ;;
@@ -176,8 +181,8 @@ function discover_available_versions {
 function repos_upgrade {
   local options=''
 
-  if [ -n "$REPOS_OVERRIDES" ]; then
-    options="--load-overrides $REPOS_OVERRIDES"
+  if [ -n "$LOAD_OVERRIDES" ]; then
+    options="--load-overrides $LOAD_OVERRIDES"
   fi
 
   echo -n 'Upgrading repositories...'
@@ -192,7 +197,7 @@ function repos_upgrade {
 }
 
 function fix_repos_upgrade {
-  local tmpfile=`mktemp /tmp/upgradedistro.XXXXXXXXXXX`
+  local tmpfile=`[[ -n $LOAD_OVERRIDES ]] && echo "$LOAD_OVERRIDES" || mktemp "$HOME/upgradedistro_overrides.XXXXXXXXXXX"`
   EDITOR=$EDITOR || 'vim'
   _warning "Some repository can't get upgraded, so you should either..."
   _option 'Disable the repositories having an invalid URL'
@@ -231,7 +236,8 @@ function fix_repos_upgrade {
   done
 
   _ok 'Repository check completed with success!'
-  REPOS_OVERRIDES="$tmpfile"
+  LOAD_OVERRIDES="$tmpfile"
+  echo "LOAD_OVERRIDES=$LOAD_OVERRIDES" >> "$RESUME_FILE"
 }
 
 filter_params "$@"
@@ -239,6 +245,13 @@ filter_params "$@"
 if [[ $EUID == 0 ]]; then
   _error 'Running as root, please start the script as a regular user.'
   exit
+fi
+
+if [[ -n "$LOAD_OVERRIDES" ]]; then
+  if [[ ! -f "$LOAD_OVERRIDES" ]]; then
+    _error "The overrides filename '$LOAD_OVERRIDES' doesn't exist, dropped!"
+    LOAD_OVERRIDES=''
+  fi
 fi
 
 if [[ $VERSION_CHECK == 1 ]]; then
