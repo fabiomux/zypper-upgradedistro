@@ -235,6 +235,11 @@ function fix_repos_upgrade {
 
 filter_params "$@"
 
+if [[ $EUID == 0 ]]; then
+  _error 'Running as root, please start the script as a regular user.'
+  exit
+fi
+
 if [[ $VERSION_CHECK == 1 ]]; then
   echo -n 'Online version check...'
   res=`curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap' | head -n 1`
