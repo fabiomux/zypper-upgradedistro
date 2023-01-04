@@ -82,17 +82,17 @@ function filter_params {
     case "$1" in
     '--allow-unstable' | '-U') ALLOW_UNSTABLE=1
     ;;
-    '--no-version-check' | '-v') VERSION_CHECK=0
+    '--no-version-check' | '-v') VERSION_CHECK=-1
     ;;
-    '--no-system-update' | '-s') SYSTEM_UPDATE=0
+    '--no-system-update' | '-s') SYSTEM_UPDATE=-1
     ;;
-    '--no-repository-check' | '-c') REPOSITORY_CHECK=0
+    '--no-repository-check' | '-c') REPOSITORY_CHECK=-1
     ;;
-    '--no-repository-upgrade' | '-u') REPOSITORY_UPGRADE=0
+    '--no-repository-upgrade' | '-u') REPOSITORY_UPGRADE=-1
     ;;
-    '--no-repository' | '-r') REPOSITORY_CHECK=0; REPOSITORY_UPGRADE=0
+    '--no-repository' | '-r') REPOSITORY_CHECK=-1; REPOSITORY_UPGRADE=-1
     ;;
-    '--no-packages' | '-p') DOWNLOAD_PACKAGES=0
+    '--no-packages' | '-p') DOWNLOAD_PACKAGES=-1
     ;;
     '--resume')
       if [ -f "$RESUME_FILE" ]; then
@@ -268,7 +268,11 @@ if [[ $VERSION_CHECK == 1 ]]; then
   fi
   discover_available_versions
 else
-  _warning 'Version check skipped'
+  if [[ $VERSION_CHECK == 0 ]]; then
+    _ok 'Version check achieved'
+  else
+    _warning 'Version check skipped'
+  fi
 fi
 
 if [[ $SYSTEM_UPDATE == 1 ]]; then
@@ -289,7 +293,11 @@ if [[ $SYSTEM_UPDATE == 1 ]]; then
   fi
   echo 'SYSTEM_UPDATE=0' >> "$RESUME_FILE"
 else
-  _warning 'System update skipped'
+  if [[ $SYSTEM_UPDATE == 0 ]]; then
+    _ok 'System update achieved'
+  else
+    _warning 'System update skipped'
+  fi
 fi
 
 if [[ $REPOSITORY_CHECK == 1 ]]; then
@@ -314,7 +322,11 @@ if [[ $REPOSITORY_CHECK == 1 ]]; then
     ;;
   esac
 else
-  _warning 'Repository check skipped'
+  if [[ $REPOSITORY_CHECK == 0 ]]; then
+    _ok 'Repository check achieved'
+  else
+    _warning 'Repository check skipped'
+  fi
 fi
 
 if [[ $REPOSITORY_UPGRADE == 1 ]]; then
@@ -329,7 +341,11 @@ if [[ $REPOSITORY_UPGRADE == 1 ]]; then
   repos_upgrade
   echo 'REPOSITORY_UPGRADE=0' >> "$RESUME_FILE"
 else
-  _warning 'Repository upgrade skipped'
+  if [[ $REPOSITORY_UPGRADE == 0 ]];then
+    _ok 'Repository upgrade achieved'
+  else
+    _warning 'Repository upgrade skipped'
+  fi
 fi
 
 if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
@@ -349,7 +365,11 @@ if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
     exit
   fi
 else
-  _warning 'Package download skipped'
+  if [[ $DOWNLOAD_PACKAGES == 0 ]]; then
+    _ok 'Package download achieved'
+  else
+    _warning 'Package download skipped'
+  fi
 fi
 
 echo -n 'Running terminal check...'
