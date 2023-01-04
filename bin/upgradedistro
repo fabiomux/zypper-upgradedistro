@@ -211,7 +211,7 @@ function fix_repos_upgrade {
   read
 
   echo -n 'Exporting the list...'
-  zypper-upgraderepo --check-next --ini --only-enabled --only-invalid 1> $tmpfile
+  zypper-upgraderepo --check-next --ini --only-enabled --only-invalid 1> "$tmpfile"
   _ok 'List ready to be edited. Press the [RETURN] key to continue'
   read
   local res=7
@@ -225,7 +225,7 @@ function fix_repos_upgrade {
       _clean ''
       _clean 'Press the [RETURN] key to edit the file again'
       read
-      zypper-upgraderepo --check-next --only-enabled --load-overrides "$tmpfile" --ini --only-invalid 1> $tmpfile
+      zypper-upgraderepo --check-next --only-enabled --load-overrides "$tmpfile" --ini --only-invalid 1> "$tmpfile"
     fi
   done
 
@@ -410,6 +410,7 @@ fi
 _clean '*************************************************************************************'
 _clean "*** Time to upgrade, don't turn off the computer until the procedure is completed ***"
 _clean '*************************************************************************************'
+_clean
 _ask 'Are you ready to continue?'
 read ans
 if [[ "$ans" == 'y' ]]; then
@@ -425,7 +426,10 @@ else
   exit
 fi
 
+_clean '**********************************************'
 _clean '*** Time to reboot to complete the upgrade ***'
+_clean '**********************************************'
+_clean
 _ask 'Are you ready to continue?'
 read ans
 if [[ "$ans" == 'y' ]]; then
