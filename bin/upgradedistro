@@ -20,6 +20,7 @@ DOWNLOAD_PACKAGES=1
 REPOS_OVERRIDES=''
 RESUME_FILE="$HOME/upgradedistro.resume"
 UPGRADE_TO=''
+CHECK_FOR=''
 
 function help {
   local ver=`grep '# Version: [0-9]\+' "$0"|cut -f 3 -d ' '`
@@ -211,21 +212,21 @@ function fix_repos_upgrade {
   read
 
   echo -n 'Exporting the list...'
-  zypper-upgraderepo --check-next --ini --only-enabled --only-invalid 1> "$tmpfile"
+  zypper-upgraderepo $CHECK_FOR --ini --only-enabled --only-invalid 1> "$tmpfile"
   _ok 'List ready to be edited. Press the [RETURN] key to continue'
   read
   local res=7
   while [[  $res !=  0 ]]; do
     $EDITOR "$tmpfile"
     echo -n 'Checking repositories again...'
-    zypper-upgraderepo --check-next --only-enabled --load-overrides "$tmpfile" --exit-on-fail --quiet
+    zypper-upgraderepo $CHECK_FOR --only-enabled --load-overrides "$tmpfile" --exit-on-fail --quiet
     res=$?
     if [[ $res != 0 ]]; then
       _error 'Other problems have been detected!    '
       _clean ''
       _clean 'Press the [RETURN] key to edit the file again'
       read
-      zypper-upgraderepo --check-next --only-enabled --load-overrides "$tmpfile" --ini --only-invalid 1> "$tmpfile"
+      zypper-upgraderepo $CHECK_FOR --only-enabled --load-overrides "$tmpfile" --ini --only-invalid 1> "$tmpfile"
     fi
   done
 
@@ -302,8 +303,8 @@ fi
 
 if [[ $REPOSITORY_CHECK == 1 ]]; then
   echo -n 'Checking the Repositories... '
-  check_for=`[[ -z "$UPGRADE_TO" ]] && echo '--check-next' || echo "--check-for $UPGRADE_TO"`
-  zypper-upgraderepo $check_for --only-enabled --quiet --exit-on-fail
+  CHECK_FOR=`[[ -z "$UPGRADE_TO" ]] && echo '--check-next' || echo "--check-for $UPGRADE_TO"`
+  zypper-upgraderepo $CHECK_FOR --only-enabled --quiet --exit-on-fail
   case $? in
   0)
     _ok 'Repositories: Ready to be upgraded'
@@ -317,7 +318,7 @@ if [[ $REPOSITORY_CHECK == 1 ]]; then
     fix_repos_upgrade
     ;;
   *)
-    _error "Unhandled error, run the 'zypper-upgraderepo --check-next' command manually to know the problem"
+    _error "Unhandled error, run the 'zypper-upgraderepo $CHECK_FOR' command manually to know the problem"
     exit
     ;;
   esac
