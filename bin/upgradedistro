@@ -9,7 +9,7 @@
 # Usage:   This script performs all the steps needed to upgrade the openSUSE Leap
 #            distribution smoothly.
 # Created: 2020/04/04
-# Updated: 2022/12/12
+# Updated: 2023/01/05
 
 VERSION_CHECK=1
 ALLOW_UNSTABLE=0
@@ -162,7 +162,7 @@ function discover_available_versions {
 
     ans=
     while [[ -z $ans ]]; do
-      echo -ne 'Insert a valid value: [1/.../$num_versions] '
+      echo -ne "Insert a valid value: [1/.../$num_versions] "
       read ans
       if [[ -z "$ans" || $ans -lt 1 || $ans -gt $num_versions ]]; then
         _up;_up
@@ -256,14 +256,19 @@ fi
 
 if [[ $VERSION_CHECK == 1 ]]; then
   echo -n 'Online version check...'
-  res=`curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap' | head -n 1`
+
+  if [[ $ALLOW_UNSTABLE == 0 ]]; then
+    res=`curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap' | head -n 1`
+  else
+    res=`curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap.*<sup>' | head -n 1`
+  fi
 
   if [[ "$res" == '' ]]; then
     _error "Connection troubles, the address https://get.opensuse.org can't be reached"
     exit
   fi
 
-  long_ver=`echo $res | sed  's@.*>\(.*\)<.*@\1@g'`
+  long_ver=`echo $res | sed  's@.*>Leap \([^<\ ]\+\)\ *<.*@\1@g'`
   short_ver=`echo $long_ver | cut -f 2 -d ' '`
   #echo $long_ver; echo $short_ver; exit
   current_ver=`cat /etc/os-release | grep -i '^Version=' | cut -f 2 -d '=' | sed 's@"@@g'`
