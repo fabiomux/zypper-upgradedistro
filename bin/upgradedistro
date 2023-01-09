@@ -191,7 +191,13 @@ function repos_upgrade {
   if [[ $? == 0 ]]; then
     _ok 'Repositories correctly upgraded!'
   else
-    _error 'An error occurred, impossible to upgrade the repositories!'
+    _error 'An error occurred while upgrading the repositories'
+    _clean ''
+    _clean '*****************************************************************************************************'
+    _clean "*** Run 'sudo zypper-upgraderepo $upgrade_to --only-enabled $options' to check and fix the issues ***"
+    _clean '***   then restart this script with the --resume option                                           ***'
+    _clean '***   or skip this step with the --no-repository option (-r)                                      ***'
+    _clean '*****************************************************************************************************'
     exit
   fi
 }
@@ -303,11 +309,11 @@ if [[ $SYSTEM_UPDATE == 1 ]]; then
   else
     _error 'An error occurred while updating the system'
     _clean ''
-    _clean '****************************************************************'
-    _clean '*** Run the command "sudo zypper update" to fix the errors   ***'
-    _clean '***   and once fixed restart this script with the options -s ***'
-    _clean '***   or resume it with the --resume flag                    ***'
-    _clean '****************************************************************'
+    _clean '*******************************************************************'
+    _clean '*** Run "sudo zypper update" to check and fix the issues        ***'
+    _clean '***   then restart this script with the --resume option         ***'
+    _clean '***   or skip this step with the --no-system-update option (-s) ***'
+    _clean '*******************************************************************'
     exit
   fi
   echo 'SYSTEM_UPDATE=0' >> "$RESUME_FILE"
@@ -336,7 +342,13 @@ if [[ $REPOSITORY_CHECK == 1 ]]; then
     fix_repos_upgrade
     ;;
   *)
-    _error "Unhandled error, run the 'zypper-upgraderepo $CHECK_FOR' command manually to know the problem"
+    _error 'An error occurred while checking the repositories'
+    _clean ''
+    _clean '**************************************************************************************'
+    _clean "*** Run 'zypper-upgraderepo $CHECK_FOR --only-enabled' to check and fix the issues ***"
+    _clean '***   then restart this script with the --resume option                            ***'
+    _clean '***   or skip this step with the --no-repository-check option (-c)                 ***'
+    _clean '**************************************************************************************'
     exit
     ;;
   esac
@@ -374,13 +386,13 @@ if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
     _ok 'All the packages have been downloaded'
     echo 'DOWNLOAD_PACKAGES=0' >> "$RESUME_FILE"
   else
-    _error 'Something wrong happened'
+    _error 'An error occurred while downloading the upgrading packages'
     _clean ''
-    _clean '***************************************************************************'
-    _clean '*** Run the command "sudo zypper dup --download-only" to fix the errors ***'
-    _clean '***   and once fixed restart this script with the options -r -p -s      ***'
-    _clean '***   or resume it with the --resume flag                               ***'
-    _clean '***************************************************************************'
+    _clean '*************************************************************************'
+    _clean '*** Run "sudo zypper dup --download-only" to check and fix the issues ***'
+    _clean '***   then restart this script with the --resume option               ***'
+    _clean '***   or skip this step with the --no-packages option (-p)            ***'
+    _clean '*************************************************************************'
     exit
   fi
 else
@@ -399,18 +411,22 @@ else
   _clean ''
   _clean '*************************************************************************************'
   _clean '*** Please logout from your X session and restart this command in a true terminal ***'
-  _clean "***  (CTRL + ALT + Fn) logging in with the same username ($USER).                 ***"
+  _clean "***   typing CTRL + ALT + Fn and logging in with the same username ($USER).       ***"
   _clean '***                                                                               ***'
-  _clean '*** Use the options -r -p -s -V to avoid completed tasks to be run again          ***'
-  _clean '***   or resume the process with the --resume flag                                ***'
+  _clean '***   then restart this script with the --resume option                           ***'
   _clean '*************************************************************************************'
   exit
 fi
 
-_clean '******************************************************************************************'
-_clean '*** Going to switch to runlevel 3 in order to have the minimal services running before ***'
-_clean '*** apply the changes. Close all the application in the graphical session and logout   ***'
-_clean '******************************************************************************************'
+_clean '***************************************************************************'
+_clean '*** Going to switch to runlevel 3 in order to have the minimal services ***'
+_clean '***   running before applying the changes.                              ***'
+_clean '***                                                                     ***'
+_clean '*** Be sure to:                                                         ***'
+_clean '***   - close all the applications in the graphical session             ***'
+_clean '***   - unmount unnedeed external storage disks/USB keys/SD cards/...   ***'
+_clean '***   - logout from the graphical session                               ***'
+_clean '***************************************************************************'
 _ask 'Are you ready to continue?'
 read ans
 if [[ "$ans" == 'y' ]]; then
@@ -423,13 +439,17 @@ if [[ "$ans" == 'y' ]]; then
   fi
 else
   _error 'Upgrading process aborted.'
+  _clean ''
+  _clean '***************************************************************'
+  _clean '*** When ready, restart the script with the --resume option ***'
+  _clean '***************************************************************'
   exit
 fi
 
 _clean '*************************************************************************************'
 _clean "*** Time to upgrade, don't turn off the computer until the procedure is completed ***"
 _clean '*************************************************************************************'
-_clean
+_clean ''
 _ask 'Are you ready to continue?'
 read ans
 if [[ "$ans" == 'y' ]]; then
@@ -438,10 +458,19 @@ if [[ "$ans" == 'y' ]]; then
     _ok 'All packages have been installed'
   else
     _error 'Something wrong happened'
+    _clean ''
+    _clean '**************************************************************'
+    _clean '*** Retry restarting the script with the --resume option   ***'
+    _clean '***   or just execute "sudo zypper --no-refresh dup" again ***'
+    _clean '**************************************************************'
     exit
   fi
 else
   _error 'Upgrading process aborted'
+  _clean ''
+  _clean '***************************************************************'
+  _clean '*** When ready, restart the script with the --resume option ***'
+  _clean '***************************************************************'
   exit
 fi
 
@@ -456,5 +485,6 @@ if [[ "$ans" == 'y' ]]; then
   sudo reboot now
 else
   _error 'Reboot the system manually to complete the process!'
+  exit
 fi
 
