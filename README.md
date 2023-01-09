@@ -79,6 +79,9 @@ This is the full list of the available options:
   <dt>--allow-unstable (-U):</dt>
   <dd>Allow unstable releases to be considered as an option</dd>
 
+  <dt>--load-overrides <FILE>:</dt>
+  <dd>Load the repository overrides FILE</dd>
+
   <dt>--no-version-check (-v):</dt>
   <dd>Skip the release version check</dd>
 
