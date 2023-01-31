@@ -280,6 +280,14 @@ if [[ -n "$LOAD_OVERRIDES" ]]; then
   fi
 fi
 
+# ===========================================================
+#
+# Step n.1
+#   openSUSE Leap version check through the download webpage
+#   for the reference. In case more versions are available,
+#   it asks which one to upgrade to.
+#
+# ===========================================================
 if [[ $VERSION_CHECK == 1 ]]; then
   echo -n 'Online version check...'
 
@@ -312,14 +320,18 @@ if [[ $VERSION_CHECK == 1 ]]; then
     exit 2
   fi
   discover_available_versions
+elif [[ $VERSION_CHECK == 0 ]]; then
+  _ok 'Version check achieved'
 else
-  if [[ $VERSION_CHECK == 0 ]]; then
-    _ok 'Version check achieved'
-  else
-    _warning 'Version check skipped'
-  fi
+  _warning 'Version check skipped'
 fi
 
+# ===========================================================
+#
+# Step n.2
+#   Update the system to the latest available packages
+#
+# ===========================================================
 if [[ $SYSTEM_UPDATE == 1 ]]; then
   echo -n 'Performing the system update...'
   sudo zypper update -y -l &> /dev/null
@@ -344,14 +356,19 @@ if [[ $SYSTEM_UPDATE == 1 ]]; then
     ;;
   esac
   echo 'SYSTEM_UPDATE=0' >> "$RESUME_FILE"
+elif [[ $SYSTEM_UPDATE == 0 ]]; then
+  _ok 'System update achieved'
 else
-  if [[ $SYSTEM_UPDATE == 0 ]]; then
-    _ok 'System update achieved'
-  else
-    _warning 'System update skipped'
-  fi
+  _warning 'System update skipped'
 fi
 
+# ===========================================================
+#
+# Step n.3
+#   Check for the repository availability to migrate to the
+#   new selected version.
+#
+# ===========================================================
 if [[ $REPOSITORY_CHECK == 1 ]]; then
   echo -n 'Checking the Repositories... '
   CHECK_FOR=`[[ -z "$UPGRADE_TO" ]] && echo '--check-next' || echo "--check-for $UPGRADE_TO"`
@@ -379,14 +396,18 @@ if [[ $REPOSITORY_CHECK == 1 ]]; then
     exit
     ;;
   esac
+elif [[ $REPOSITORY_CHECK == 0 ]]; then
+  _ok 'Repository check achieved'
 else
-  if [[ $REPOSITORY_CHECK == 0 ]]; then
-    _ok 'Repository check achieved'
-  else
-    _warning 'Repository check skipped'
-  fi
+  _warning 'Repository check skipped'
 fi
 
+# ===========================================================
+#
+# Step n.4
+#   Upgrade the repository URLs
+#
+# ===========================================================
 if [[ $REPOSITORY_UPGRADE == 1 ]]; then
   echo -n 'Backing up repositories...'
   zypper-upgraderepo --backup "$PWD" --quiet
@@ -398,14 +419,18 @@ if [[ $REPOSITORY_UPGRADE == 1 ]]; then
   fi
   repos_upgrade
   echo 'REPOSITORY_UPGRADE=0' >> "$RESUME_FILE"
+elif [[ $REPOSITORY_UPGRADE == 0 ]];then
+  _ok 'Repository upgrade achieved'
 else
-  if [[ $REPOSITORY_UPGRADE == 0 ]];then
-    _ok 'Repository upgrade achieved'
-  else
-    _warning 'Repository upgrade skipped'
-  fi
+  _warning 'Repository upgrade skipped'
 fi
 
+# ===========================================================
+#
+# Step n.5
+#   Download the packages to upgrade and keep them in cache
+#
+# ===========================================================
 if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
   echo -n 'Downloading packages...'
   sudo zypper dup --download-only
@@ -429,14 +454,18 @@ if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
     exit
     ;;
   esac
+elif [[ $DOWNLOAD_PACKAGES == 0 ]]; then
+  _ok 'Package download achieved'
 else
-  if [[ $DOWNLOAD_PACKAGES == 0 ]]; then
-    _ok 'Package download achieved'
-  else
-    _warning 'Package download skipped'
-  fi
+  _warning 'Package download skipped'
 fi
 
+# ===========================================================
+#
+# Step n.6
+#   Leave the graphical session and switch to runlevel 3
+#
+# ===========================================================
 echo -n 'Running terminal check...'
 if [[ "`tty`" =~ tty[0-9]+$ ]]; then
   _ok 'Running in a true terminal'
@@ -480,6 +509,12 @@ else
   exit
 fi
 
+# ===========================================================
+#
+# Step n.7
+#   Upgrading the packages from cache
+#
+# ===========================================================
 _clean '*************************************************************************************'
 _clean "*** Time to upgrade, don't turn off the computer until the procedure is completed ***"
 _clean '*************************************************************************************'
@@ -515,6 +550,12 @@ else
   exit
 fi
 
+# ===========================================================
+#
+# Step n.8
+#   Reboot the system
+#
+# ===========================================================
 _clean '**********************************************'
 _clean '*** Time to reboot to complete the upgrade ***'
 _clean '**********************************************'
