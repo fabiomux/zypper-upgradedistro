@@ -188,9 +188,15 @@ function repos_upgrade {
   echo -n 'Upgrading repositories...'
   local upgrade_to=`[[ -z "$UPGRADE_TO" ]] && echo '--upgrade' || echo "--upgrade-to $UPGRADE_TO"`
   sudo zypper-upgraderepo $upgrade_to --only-enabled --quiet $options
-  if [[ $? == 0 ]]; then
+  case $? in
+  0)
     _ok 'Repositories correctly upgraded!'
-  else
+    ;;
+  5)
+    libzypp_locked_error
+    exit
+    ;;
+  *)
     _error 'An error occurred while upgrading the repositories'
     _clean ''
     _clean '*****************************************************************************************************'
@@ -199,7 +205,8 @@ function repos_upgrade {
     _clean '***   or skip this step with the --no-repository option (-r)                                      ***'
     _clean '*****************************************************************************************************'
     exit
-  fi
+    ;;
+  esac
 }
 
 function fix_repos_upgrade {
@@ -245,6 +252,19 @@ function fix_repos_upgrade {
   LOAD_OVERRIDES="$tmpfile"
   echo "LOAD_OVERRIDES=$LOAD_OVERRIDES" >> "$RESUME_FILE"
 }
+
+function libzypp_locked_error {
+  local library=`ldd /usr/bin/zypper | grep 'libzypp.so' | cut -f 2 -d '>' | cut -f 2 -d ' '`
+  local pid=`sudo lsof "$library" | tail -n 1 | cut -f 2 -d ' '`
+
+  _error "The application with pid $pid is accessing the package management system"
+  _clean ''
+  _clean '*******************************************************************'
+  _clean "*** Terminate the application with 'sudo kill $pid'             ***"
+  _clean '***   then restart this script with the --resume option         ***'
+  _clean '*******************************************************************'
+}
+
 
 filter_params "$@"
 
@@ -303,10 +323,16 @@ fi
 if [[ $SYSTEM_UPDATE == 1 ]]; then
   echo -n 'Performing the system update...'
   sudo zypper update -y -l &> /dev/null
-  if [[ $? == 0 ]]; then
+  case $? in
+  0)
     _up
     _ok 'System correctly updated         '
-  else
+    ;;
+  7)
+    libzypp_locked_error
+    exit
+    ;;
+  *)
     _error 'An error occurred while updating the system'
     _clean ''
     _clean '*******************************************************************'
@@ -315,7 +341,8 @@ if [[ $SYSTEM_UPDATE == 1 ]]; then
     _clean '***   or skip this step with the --no-system-update option (-s) ***'
     _clean '*******************************************************************'
     exit
-  fi
+    ;;
+  esac
   echo 'SYSTEM_UPDATE=0' >> "$RESUME_FILE"
 else
   if [[ $SYSTEM_UPDATE == 0 ]]; then
@@ -382,10 +409,16 @@ fi
 if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
   echo -n 'Downloading packages...'
   sudo zypper dup --download-only
-  if [[ $? == 0 ]]; then
+  case $? in
+  0)
     _ok 'All the packages have been downloaded'
     echo 'DOWNLOAD_PACKAGES=0' >> "$RESUME_FILE"
-  else
+    ;;
+  7)
+    libzypp_locked_error
+    exit
+    ;;
+  *)
     _error 'An error occurred while downloading the upgrading packages'
     _clean ''
     _clean '*************************************************************************'
@@ -394,7 +427,8 @@ if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
     _clean '***   or skip this step with the --no-packages option (-p)            ***'
     _clean '*************************************************************************'
     exit
-  fi
+    ;;
+  esac
 else
   if [[ $DOWNLOAD_PACKAGES == 0 ]]; then
     _ok 'Package download achieved'
@@ -454,9 +488,15 @@ _ask 'Are you ready to continue?'
 read ans
 if [[ "$ans" == 'y' ]]; then
   sudo zypper --no-refresh dup
-  if [[ $? == 0 ]]; then
+  case $? in
+  0)
     _ok 'All packages have been installed'
-  else
+    ;;
+  7)
+    libzypp_locked_error
+    exit
+    ;;
+  *)
     _error 'Something wrong happened'
     _clean ''
     _clean '**************************************************************'
@@ -464,7 +504,8 @@ if [[ "$ans" == 'y' ]]; then
     _clean '***   or just execute "sudo zypper --no-refresh dup" again ***'
     _clean '**************************************************************'
     exit
-  fi
+    ;;
+  esac
 else
   _error 'Upgrading process aborted'
   _clean ''
