@@ -21,6 +21,7 @@ LOAD_OVERRIDES=''
 RESUME_FILE="$HOME/upgradedistro.resume"
 UPGRADE_TO=''
 CHECK_FOR=''
+UPGRADEREPO_EXE=''
 
 function help {
   local ver=`grep '# Version: [0-9]\+' "$0"|cut -f 3 -d ' '`
@@ -146,10 +147,19 @@ function _up {
   echo -e "\e[1A\e[K"
 }
 
+function load_ur_exe {
+  local exe=`command -v upgraderepo`
+  if [[ "$exe" == '' ]]; then
+    UPGRADEREPO_EXE='zypper-upgraderepo'
+  else
+    UPGRADEREPO_EXE='upgraderepo'
+  fi
+}
+
 function discover_available_versions {
   echo -n 'Checking for the available versions... '
   local allow_unstable=`[[ $ALLOW_UNSTABLE -eq 1 ]] && echo '--allow-unstable' || echo ''`
-  local versions=`zypper-upgraderepo --status --quiet $allow_unstable`
+  local versions=`$UPGRADEREPO_EXE --status --quiet $allow_unstable`
   local num_versions=`echo $versions | cut -f 1 -d ' '`
 
   if [[ $num_versions -gt 1 ]]; then
@@ -187,7 +197,7 @@ function repos_upgrade {
 
   echo -n 'Upgrading repositories...'
   local upgrade_to=`[[ -z "$UPGRADE_TO" ]] && echo '--upgrade' || echo "--upgrade-to $UPGRADE_TO"`
-  sudo zypper-upgraderepo $upgrade_to --only-enabled --quiet $options
+  sudo $UPGRADEREPO_EXE $upgrade_to --only-enabled --quiet $options
   case $? in
   0)
     _ok 'Repositories correctly upgraded!'
@@ -200,7 +210,7 @@ function repos_upgrade {
     _error 'An error occurred while upgrading the repositories'
     _clean ''
     _clean '*****************************************************************************************************'
-    _clean "*** Run 'sudo zypper-upgraderepo $upgrade_to --only-enabled $options' to check and fix the issues ***"
+    _clean "*** Run 'sudo $UPGRADEREPO_EXE $upgrade_to --only-enabled $options' to check and fix the issues ***"
     _clean '***   then restart this script with the --resume option                                           ***'
     _clean '***   or skip this step with the --no-repository option (-r)                                      ***'
     _clean '*****************************************************************************************************'
@@ -230,21 +240,21 @@ function fix_repos_upgrade {
   read
 
   echo -n 'Exporting the list...'
-  zypper-upgraderepo $CHECK_FOR --ini --only-enabled --only-invalid 1> "$tmpfile"
+  $UPGRADEREPO_EXE $CHECK_FOR --ini --only-enabled --only-invalid 1> "$tmpfile"
   _ok 'List ready to be edited. Press the [RETURN] key to continue'
   read
   local res=7
   while [[  $res !=  0 ]]; do
     $EDITOR "$tmpfile"
     echo -n 'Checking repositories again...'
-    zypper-upgraderepo $CHECK_FOR --only-enabled --load-overrides "$tmpfile" --exit-on-fail --quiet
+    $UPGRADEREPO_EXE $CHECK_FOR --only-enabled --load-overrides "$tmpfile" --exit-on-fail --quiet
     res=$?
     if [[ $res != 0 ]]; then
       _error 'Other problems have been detected!    '
       _clean ''
       _clean 'Press the [RETURN] key to edit the file again'
       read
-      zypper-upgraderepo $CHECK_FOR --only-enabled --load-overrides "$tmpfile" --ini --only-invalid 1> "$tmpfile"
+      $UPGRADEREPO_EXE $CHECK_FOR --only-enabled --load-overrides "$tmpfile" --ini --only-invalid 1> "$tmpfile"
     fi
   done
 
@@ -275,10 +285,12 @@ fi
 
 if [[ -n "$LOAD_OVERRIDES" ]]; then
   if [[ ! -f "$LOAD_OVERRIDES" ]]; then
-    _error "The overrides filename '$LOAD_OVERRIDES' doesn't exist, dropped!"
-    LOAD_OVERRIDES=''
+    _error "The overrides filename '$LOAD_OVERRIDES' doesn't exist!"
+    exit
   fi
 fi
+
+load_ur_exe
 
 # ===========================================================
 #
@@ -372,7 +384,7 @@ fi
 if [[ $REPOSITORY_CHECK == 1 ]]; then
   echo -n 'Checking the Repositories... '
   CHECK_FOR=`[[ -z "$UPGRADE_TO" ]] && echo '--check-next' || echo "--check-for $UPGRADE_TO"`
-  zypper-upgraderepo $CHECK_FOR --only-enabled --quiet --exit-on-fail
+  $UPGRADEREPO_EXE $CHECK_FOR --only-enabled --quiet --exit-on-fail
   case $? in
   0)
     _ok 'Repositories: Ready to be upgraded'
@@ -389,7 +401,7 @@ if [[ $REPOSITORY_CHECK == 1 ]]; then
     _error 'An error occurred while checking the repositories'
     _clean ''
     _clean '**************************************************************************************'
-    _clean "*** Run 'zypper-upgraderepo $CHECK_FOR --only-enabled' to check and fix the issues ***"
+    _clean "*** Run '$UPGRADEREPO_EXE $CHECK_FOR --only-enabled' to check and fix the issues ***"
     _clean '***   then restart this script with the --resume option                            ***'
     _clean '***   or skip this step with the --no-repository-check option (-c)                 ***'
     _clean '**************************************************************************************'
@@ -410,7 +422,7 @@ fi
 # ===========================================================
 if [[ $REPOSITORY_UPGRADE == 1 ]]; then
   echo -n 'Backing up repositories...'
-  zypper-upgraderepo --backup "$PWD" --quiet
+  $UPGRADEREPO_EXE --backup "$PWD" --quiet
   if [[ $? == 0 ]]; then
     _ok "Repositories backup created under '$PWD'"
   else
