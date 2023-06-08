@@ -10,7 +10,7 @@ tgz:
 install_script:
 	@sudo install -m 755 ./bin/upgradedistro /usr/local/bin/
 	@echo 'Script installed!'
-install_plugin: install
+install_plugin:
 	@sudo install -m 755 ./plugin/zypper-upgradedistro /usr/lib/zypper/commands/
 	@sudo install -m 644 ./plugin/zypper-upgradedistro.8 /usr/share/man/man8/
 	@echo 'Plugin installed!'
