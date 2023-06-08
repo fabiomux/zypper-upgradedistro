@@ -183,6 +183,9 @@ function discover_available_versions {
     _ok "Selected the $UPGRADE_TO version"
   elif [[ $num_versions -eq 1 ]]; then
     _ok 'Selected the last available release to upgrade'
+  else
+    _error 'The zypper-upgraderepo package is not updated yet to recognize the new release!'
+    exit
   fi
   echo "UPGRADE_TO=$UPGRADE_TO" >> "$RESUME_FILE"
   echo "ALLOW_UNSTABLE=$ALLOW_UNSTABLE" >> "$RESUME_FILE"
