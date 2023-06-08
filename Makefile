@@ -16,6 +16,8 @@ install_plugin:
 	@echo 'Plugin installed!'
 install: install_script install_plugin
 	@echo 'Installation completed!'
+tag:
+	git tag v$(shell grep 'Version: [0-9]' './bin/upgradedistro' | cut -f 3 -d ' ')
 uninstall_script:
 	@sudo rm /usr/local/bin/upgradedistro || true
 	@echo 'Script uninstalled!'
