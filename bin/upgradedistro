@@ -400,6 +400,10 @@ if [[ $REPOSITORY_CHECK == 1 ]]; then
   7)
     fix_repos_upgrade
     ;;
+  16)
+    _error "The current system doesn't support the x86_64-v2 instruction set!"
+    exit
+    ;;
   *)
     _error 'An error occurred while checking the repositories'
     _clean ''
