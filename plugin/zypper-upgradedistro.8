@@ -1,5 +1,5 @@
 .\" Manpage for zypper-upgradedistro.
-.TH man 8 "28 Sep 2022" "1.0.0" "zypper-upgradedistro man page"
+.TH man 8 "28 Sep 2022" "1.2.0" "zypper-upgradedistro man page"
 .SH NAME
 Zypper-Upgradedistro \- performs the steps to upgrade the openSUSE Leap distro to the new release
 .SH SYNOPSIS
@@ -22,14 +22,17 @@ application.
 When invalid and enabled repository are detected a list of them is exported within
 an INI file to be fixed. The choosen editor is the same provided by the \fB$EDITOR\fR
 environment variable, so in order to have a custom editor, just override this variable
-before launching the script
+before launching the script:
+
+    zypper upgradedistro --resume
+
 .SH OPTIONS
 .TP
 .B  --allow-unstable (-U)
 Allows unstable releases to be considered as an option.
 .TP
-.B  --load-overrides <FILE>
-Load the repository overrides FILE.
+.B  --load-overrides <FILENAME>
+Load the repository overrides FILENAME.
 .TP
 .B  --no-version-check (-v)
 Skip the version check to avoid another call to the online server.
@@ -52,7 +55,7 @@ Skip both the repository check and upgrade procedures.
 Skip the download of packages to be upgraded.
 .TP
 .B  --resume
-Restart the script from the last step left.
+Restart the script from the last step left uncompleted.
 .SH SEE ALSO
 zypper(8) zypper-upgraderepo(8)
 .SH BUGS
