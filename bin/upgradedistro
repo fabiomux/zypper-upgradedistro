@@ -1,15 +1,15 @@
 #!/bin/bash
 #
-# Title:   Zypper-Upgradedistro
-# Version: 1.1.0
-# Author:  Fabio Mucciante
-# E-mail:  fabio.mucciante@gmail.com
-# License: GPL v3
-# Reqs:    bash, sed, zypper, zypper-upgraderepo
-# Usage:   This script performs all the steps needed to upgrade the openSUSE Leap
-#            distribution smoothly.
-# Created: 2020/04/04
-# Updated: 2023/02/01
+#        Title: Zypper-Upgradedistro
+#      Version: 1.2.0
+#       Author: Fabio Mucciante
+#       E-mail: fabio.mucciante@gmail.com
+#      License: GPL v3
+# Requirements: bash, sed, zypper, zypper-upgraderepo
+#        Usage: This script performs all the steps needed to upgrade the openSUSE Leap
+#               distribution smoothly.
+#      Created: 2020/04/04
+#      Updated: 2025/12/19
 
 VERSION_CHECK=1
 ALLOW_UNSTABLE=0
@@ -24,9 +24,11 @@ CHECK_FOR=''
 UPGRADEREPO_EXE=''
 
 function help {
-  local ver=`grep '# Version: [0-9]\+' "$0"|cut -f 3 -d ' '`
-  echo <<EOL "
-Zypper-Upgradedistro v.$ver
+  local ver
+
+  ver=$(grep '# *Version: [0-9]' "$0"|cut -f 2 -d ':'|tr -d ' ')
+  echo "
+Zypper-Upgradedistro v$ver
 
 SYNOPSIS:
 
@@ -42,8 +44,8 @@ OPTIONS:
   --allow-unstable (-U):
     Allow unstable releases to be considered as an option
 
-  --load-overrides <FILE>:
-    Load the repository overrides FILE
+  --load-overrides <FILENAME>:
+    Load the repository overrides FILENAME
 
   --no-version-check (-v):
     Skip the release version check
@@ -64,7 +66,7 @@ OPTIONS:
     Skip the download of the packages to be upgraded
 
   --resume
-    Restart from the last step left
+    Restart from the last step left uncompleted
 
 OTHER:
 
@@ -77,7 +79,6 @@ DEFAULT EDITOR:
 
   To change this, override the variable \$EDITOR before launching the script
 "
-EOL
 }
 
 function filter_params {
@@ -148,24 +149,27 @@ function _up {
 }
 
 function load_ur_exe {
-  local exe=`command -v upgraderepo`
-  if [[ "$exe" == '' ]]; then
-    UPGRADEREPO_EXE='zypper-upgraderepo'
-  else
+  if command -v 'upgraderepo'; then
     UPGRADEREPO_EXE='upgraderepo'
+  else
+    UPGRADEREPO_EXE='zypper-upgraderepo'
   fi
 }
 
 function discover_available_versions {
+  local allow_unstable
+  local versions
+  local num_versions
+
   echo -n 'Checking for the available versions... '
-  local allow_unstable=`[[ $ALLOW_UNSTABLE -eq 1 ]] && echo '--allow-unstable' || echo ''`
-  local versions=`$UPGRADEREPO_EXE --status --quiet $allow_unstable`
-  local num_versions=`echo $versions | cut -f 1 -d ' '`
+  allow_unstable=$([[ $ALLOW_UNSTABLE -eq 1 ]] && echo '--allow-unstable' || echo '')
+  versions=$($UPGRADEREPO_EXE --status --quiet $allow_unstable)
+  num_versions=$(echo $versions | cut -f 1 -d ' ')
 
   if [[ $num_versions -gt 1 ]]; then
     _warning 'Which version do you want to upgrade to?'
     c=1
-    for i in `echo $versions | cut -f 2- -d ' '`; do
+    for i in $(echo $versions | cut -f 2- -d ' '); do
       _option "$c) $i"
       c=$((c+1))
     done
@@ -179,7 +183,7 @@ function discover_available_versions {
         ans=
       fi
     done
-    UPGRADE_TO=`echo $versions | cut -f $((ans+1)) -d ' '`
+    UPGRADE_TO=$(echo $versions | cut -f $((ans+1)) -d ' ')
     _ok "Selected the $UPGRADE_TO version"
   elif [[ $num_versions -eq 1 ]]; then
     _ok 'Selected the last available release to upgrade'
@@ -199,8 +203,8 @@ function repos_upgrade {
   fi
 
   echo -n 'Upgrading repositories...'
-  local upgrade_to=`[[ -z "$UPGRADE_TO" ]] && echo '--upgrade' || echo "--upgrade-to $UPGRADE_TO"`
-  sudo $UPGRADEREPO_EXE $upgrade_to --only-enabled --quiet $options
+  local upgrade_to=$([[ -z "$UPGRADE_TO" ]] && echo '--upgrade' || echo "--upgrade-to $UPGRADE_TO")
+  sudo $UPGRADEREPO_EXE $upgrade_to --only-enabled --quiet $options 2> /dev/null
   case $? in
   0)
     _ok 'Repositories correctly upgraded!'
@@ -212,19 +216,22 @@ function repos_upgrade {
   *)
     _error 'An error occurred while upgrading the repositories'
     _clean ''
-    _clean '*****************************************************************************************************'
+    _clean '***************************************************************************************************'
     _clean "*** Run 'sudo $UPGRADEREPO_EXE $upgrade_to --only-enabled $options' to check and fix the issues ***"
-    _clean '***   then restart this script with the --resume option                                           ***'
-    _clean '***   or skip this step with the --no-repository option (-r)                                      ***'
-    _clean '*****************************************************************************************************'
+    _clean '***   then restart this script with the --resume option                                         ***'
+    _clean '***   or skip this step with the --no-repository option (-r)                                    ***'
+    _clean '***************************************************************************************************'
     exit
     ;;
   esac
 }
 
 function fix_repos_upgrade {
-  local tmpfile=`[[ -n $LOAD_OVERRIDES ]] && echo "$LOAD_OVERRIDES" || mktemp "$HOME/upgradedistro_overrides.XXXXXXXXXXX"`
-  EDITOR=$EDITOR || 'vim'
+  local tmpfile
+
+  tmpfile=$([ -n "$LOAD_OVERRIDES" ] && echo "$LOAD_OVERRIDES" || mktemp "$HOME/upgradedistro_overrides.XXXXXXXXXXX")
+
+  EDITOR=$([ -n "$EDITOR" ] && echo "$EDITOR" || echo 'vim')
   _warning "Some repository can't get upgraded, so you should either..."
   _option 'Disable the repositories having an invalid URL'
   _option 'Replace the repository URL with a valid one'
@@ -267,8 +274,11 @@ function fix_repos_upgrade {
 }
 
 function libzypp_locked_error {
-  local library=`ldd /usr/bin/zypper | grep 'libzypp.so' | cut -f 2 -d '>' | cut -f 2 -d ' '`
-  local pid=`sudo lsof "$library" | tail -n 1 | cut -f 2 -d ' '`
+  local library
+  local pid
+
+  library=$(ldd /usr/bin/zypper | grep 'libzypp.so' | cut -f 2 -d '>' | cut -f 2 -d ' ')
+  pid=$(sudo lsof "$library" | tail -n 1 | cut -f 2 -d ' ')
 
   _error "The application with pid $pid is accessing the package management system"
   _clean ''
@@ -307,9 +317,9 @@ if [[ $VERSION_CHECK == 1 ]]; then
   echo -n 'Online version check...'
 
   if [[ $ALLOW_UNSTABLE == 0 ]]; then
-    res=`curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap' | head -n 1`
+    res=$(curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap' | head -n 1)
   else
-    res=`curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap.*<sup>' | head -n 1`
+    res=$(curl -A 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0' 'https://get.opensuse.org/' 2> /dev/null | grep '<h4>Leap.*<sup>' | head -n 1)
   fi
 
   if [[ "$res" == '' ]]; then
@@ -317,10 +327,10 @@ if [[ $VERSION_CHECK == 1 ]]; then
     exit
   fi
 
-  long_ver=`echo $res | sed  's@.*>Leap \([^<\ ]\+\)\ *<.*@\1@g'`
-  short_ver=`echo $long_ver | cut -f 2 -d ' '`
+  long_ver=$(echo $res | sed  's@.*>Leap \([^<\ ]\+\)\ *<.*@\1@g')
+  short_ver=$(echo $long_ver | cut -f 2 -d ' ')
   #echo $long_ver; echo $short_ver; exit
-  current_ver=`cat /etc/os-release | grep -i '^Version=' | cut -f 2 -d '=' | sed 's@"@@g'`
+  current_ver=$(grep -i '^Version=' /etc/os-release | cut -f 2 -d '=' | tr -d '"')
   if [ $short_ver != $current_ver ]; then
     _ok "The version $long_ver is available"
     _ask 'Do you want to perform an upgrade?'
@@ -386,7 +396,7 @@ fi
 # ===========================================================
 if [[ $REPOSITORY_CHECK == 1 ]]; then
   echo -n 'Checking the Repositories... '
-  CHECK_FOR=`[[ -z "$UPGRADE_TO" ]] && echo '--check-next' || echo "--check-for $UPGRADE_TO"`
+  CHECK_FOR=$([[ -z "$UPGRADE_TO" ]] && echo '--check-next' || echo "--check-for $UPGRADE_TO")
   $UPGRADEREPO_EXE $CHECK_FOR --only-enabled --quiet --exit-on-fail
   case $? in
   0)
@@ -429,8 +439,8 @@ fi
 # ===========================================================
 if [[ $REPOSITORY_UPGRADE == 1 ]]; then
   echo -n 'Backing up repositories...'
-  $UPGRADEREPO_EXE --backup "$PWD" --quiet
-  if [[ $? == 0 ]]; then
+
+  if $UPGRADEREPO_EXE --backup "$PWD" --quiet; then
     _ok "Repositories backup created under '$PWD'"
   else
     _error 'Repository backup failed'
@@ -452,7 +462,7 @@ fi
 # ===========================================================
 if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
   echo -n 'Downloading packages...'
-  sudo zypper dup --download-only
+  sudo zypper dup --allow-vendor-change --download-only
   case $? in
   0)
     _ok 'All the packages have been downloaded'
@@ -467,6 +477,10 @@ if [[ $DOWNLOAD_PACKAGES == 1 ]]; then
     _clean ''
     _clean '*************************************************************************'
     _clean '*** Run "sudo zypper dup --download-only" to check and fix the issues ***'
+    _clean '***   other helpful options to use might be:                          ***'
+    _clean '***     --allow-vendor-change                                         ***'
+    _clean '***     --allow-downgrade                                             ***'
+    _clean '***     --allow-name-change                                           ***'
     _clean '***   then restart this script with the --resume option               ***'
     _clean '***   or skip this step with the --no-packages option (-p)            ***'
     _clean '*************************************************************************'
@@ -485,18 +499,18 @@ fi
 #   Leave the graphical session and switch to runlevel 3
 #
 # ===========================================================
-echo -n 'Running terminal check...'
-if [[ "`tty`" =~ tty[0-9]+$ ]]; then
-  _ok 'Running in a true terminal'
+echo -n 'Running in graphical session check...'
+if [[ "$(tty)" =~ tty[0-9]+$ ]]; then
+  _ok 'Running in a virtual console'
 else
-  _error 'Running from a virtual terminal'
+  _error 'Running in a graphical session'
   _clean ''
-  _clean '*************************************************************************************'
-  _clean '*** Please logout from your X session and restart this command in a true terminal ***'
-  _clean "***   typing CTRL + ALT + Fn and logging in with the same username ($USER).       ***"
-  _clean '***                                                                               ***'
-  _clean '***   then restart this script with the --resume option                           ***'
-  _clean '*************************************************************************************'
+  _clean '***********************************************************************************'
+  _clean '*** Please logout from your graphical session and continue in a virtual console ***'
+  _clean "***   typing CTRL + ALT + Fn and logging in with the same username ($USER).     ***"
+  _clean '***                                                                             ***'
+  _clean '***   then restart this script with the --resume option                         ***'
+  _clean '***********************************************************************************'
   exit
 fi
 
@@ -541,7 +555,7 @@ _clean ''
 _ask 'Are you ready to continue?'
 read ans
 if [[ "$ans" == 'y' ]]; then
-  sudo zypper --no-refresh dup
+  sudo zypper --no-refresh dup --allow-vendor-change
   case $? in
   0)
     _ok 'All packages have been installed'
@@ -553,9 +567,13 @@ if [[ "$ans" == 'y' ]]; then
   *)
     _error 'Something wrong happened'
     _clean ''
-    _clean '**************************************************************'
-    _clean '*** Retry restarting the script with the --resume option   ***'
-    _clean '***   or just execute "sudo zypper --no-refresh dup" again ***'
+    _clean '***************************************************************'
+    _clean '*** Retry restarting the script with the --resume option    ***'
+    _clean '***   or just execute "sudo zypper --no-refresh dup" again  ***'
+    _clean '***   other helpful options to fix the issues use might be: ***'
+    _clean '***     --allow-vendor-change                               ***'
+    _clean '***     --allow-downgrade                                   ***'
+    _clean '***     --allow-name-change                                 ***'
     _clean '**************************************************************'
     exit
     ;;
