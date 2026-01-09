@@ -5,7 +5,7 @@ clean:
 tgz:
 	@tar --transform "s|bin|zypper-upgradedistro|" \
 	     --transform "s|plugin|zypper-upgradedistro|" \
-	     -czvf zypper-upgradedistro-$(shell grep 'Version: [0-9]' './bin/upgradedistro' | cut -f 3 -d ' ').tgz ./bin ./plugin
+	     -czvf zypper-upgradedistro-$(shell grep 'Version: [0-9]' './bin/upgradedistro' | cut -f 2 -d ':' | tr -d ' ').tgz ./bin ./plugin
 	@echo 'Archive ready!'
 install_script:
 	@sudo install -m 755 ./bin/upgradedistro /usr/local/bin/

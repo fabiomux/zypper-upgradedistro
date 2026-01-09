@@ -16,7 +16,7 @@
 #
 
 Name:           zypper-upgradedistro-plugin
-Version:        1.0.0
+Version:        1.2.0
 Release:        0
 %define mod_name zypper-upgradedistro
 %define mod_full_name %{mod_name}-%{version}
